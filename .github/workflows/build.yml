@@ -26,7 +26,7 @@ jobs:
         with:
           name: LimboAuth-Expansion
           path: "build/libs/*.jar"
-      - uses: dev-drprasad/delete-tag-and-release@v1.1
+      - uses: dev-drprasad/delete-tag-and-release@v0.2.1
         if: ${{ github.event_name == 'push' }}
         with:
           delete_release: true
