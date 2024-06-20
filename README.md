@@ -24,3 +24,14 @@ An a expansion for LimboAuth that provide placeholders for it.
 - **%limboauth_reg_date%** - shows player registration date
 - **%limboauth_login_date%** - shows player login date
 - **%limboauth_token_issued_at%** - shows player token issued date
+
+### Config options
+
+- **premium** - message for premium accounts
+- **cracked** - message for cracked accounts
+- **unknown** - message for unknown account/parameter
+- **error** - message then LimboAuth fails to get player data
+- **requesting** - message then expansion is waiting for LimboAuth to respond
+- **purge_cache_millis** - cache updates in milliseconds {:
+- **request_timeout** - maximum timeout for waiting for LimboAuth to respond
+- **enable_prefetch** - prefetches available data from LimboAuth to reduce **requesting** messages
