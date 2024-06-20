@@ -53,12 +53,13 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     types.put("reg_date", plugin -> new LongEndpoint(plugin, "reg_date"));
     types.put("uuid", plugin -> new StringEndpoint(plugin, "uuid"));
     types.put("premium_uuid", plugin -> new StringEndpoint(plugin, "premium_uuid"));
+    types.put("ip", plugin -> new StringEndpoint(plugin, "ip"));
     types.put("login_ip", plugin -> new StringEndpoint(plugin, "login_ip"));
     types.put("login_date", plugin -> new LongEndpoint(plugin, "login_date"));
     types.put("token_issued_at", plugin -> new LongEndpoint(plugin, "token_issued_at"));
     TYPES = Collections.unmodifiableMap(types);
     STRING_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-        "hash", "totp_token", "uuid", "premium_uuid", "login_ip"
+        "hash", "totp_token", "uuid", "premium_uuid", "login_ip", "ip"
     )));
     DATE_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
         "reg_date", "login_date", "token_issued_at"

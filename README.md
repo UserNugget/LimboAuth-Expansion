@@ -16,7 +16,8 @@ An a expansion for LimboAuth that provide placeholders for it.
 - %limboauth_premium_state% - shows information about player premium status.
 - %limboauth_hash% - shows player hashed password (disabled by default)
 - %limboauth_totp_token% - shows player totp token (disabled by default)
-- %limboauth_login_ip% - shows player ip address (disabled by default)
+- %limboauth_ip% - shows player ip address (disabled by default)
+- %limboauth_login_ip% - shows player login ip address (disabled by default)
 - %limboauth_uuid% - shows player uuid
 - %limboauth_premium_uuid% - shows player premium uuid
 - %limboauth_reg_date% - shows player registration date
