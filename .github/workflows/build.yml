@@ -24,8 +24,8 @@ jobs:
       - name: Upload LimboAuth-Expansion
         uses: actions/upload-artifact@v3.0.0
         with:
-          name: LimboAPI
-          path: "*/build/libs/*.jar"
+          name: LimboAuth-Expansion
+          path: "build/libs/*.jar"
       - uses: dev-drprasad/delete-tag-and-release@v0.2.1
         if: ${{ github.event_name == 'push' }}
         with:
