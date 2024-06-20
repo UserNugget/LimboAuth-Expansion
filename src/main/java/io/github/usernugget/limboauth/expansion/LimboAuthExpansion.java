@@ -130,7 +130,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     this.unknown = this.getMessage("unknown");
     this.error = this.getMessage("error");
     this.requesting = this.getMessage("requesting");
-    this.purgeCacheMillis = this.getLong("purge_cache_millis", 30_000);
+    this.purgeCacheMillis = this.getLong("purge_cache_millis", 5_000);
     this.requestTimeout = this.getLong("request_timeout", 5_000);
 
     return super.register();
