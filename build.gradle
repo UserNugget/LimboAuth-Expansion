@@ -1,0 +1,55 @@
+plugins {
+  id 'java'
+  id("checkstyle")
+  id("maven-publish")
+  id("com.github.spotbugs").version("6.0.17")
+  id("io.github.goooler.shadow").version("8.1.7")
+}
+
+group = 'io.github.usernugget'
+version = '1.0.0'
+
+repositories {
+  mavenCentral()
+  maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
+  maven { url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
+}
+
+dependencies {
+  compileOnly 'org.spigotmc:spigot-api:1.20.6-R0.1-SNAPSHOT'
+  compileOnly 'com.github.spotbugs:spotbugs-annotations:4.8.6'
+  compileOnly 'me.clip:placeholderapi:2.10.7'
+}
+
+java {
+  setSourceCompatibility(JavaVersion.VERSION_1_8)
+  setTargetCompatibility(JavaVersion.VERSION_1_8)
+}
+
+shadowJar {
+  getArchiveClassifier().set("")
+  minimize()
+}
+
+checkstyle {
+  setToolVersion("10.1")
+  setConfigFile(file("${this.getRootDir()}/config/checkstyle/checkstyle.xml"))
+  setConfigProperties("configDirectory": "${this.getRootDir()}/config/checkstyle")
+
+  setMaxErrors(0)
+  setMaxWarnings(0)
+}
+
+spotbugsMain {
+  setExcludeFilter(file("${this.getRootDir()}/config/spotbugs/suppressions.xml"))
+
+  reports {
+    html {
+      getRequired().set(true)
+      getOutputLocation().set(file("${this.getBuildDir()}/reports/spotbugs/main/spotbugs.html"))
+      setStylesheet("fancy-hist.xsl")
+    }
+  }
+}
+
+assemble.dependsOn(shadowJar)
