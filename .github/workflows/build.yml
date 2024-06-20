@@ -13,16 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.0.0
+        uses: actions/checkout@v4.1.7
       - name: Set up JDK
-        uses: actions/setup-java@v3.0.0
+        uses: actions/setup-java@v4.2.1
         with:
           distribution: adopt
           java-version: 21
       - name: Build LimboAuth-Expansion
         run: ./gradlew build
       - name: Upload LimboAuth-Expansion
-        uses: actions/upload-artifact@v3.0.0
+        uses: actions/upload-artifact@v4.3.3
         with:
           name: LimboAuth-Expansion
           path: "build/libs/*.jar"
@@ -41,7 +41,7 @@ jobs:
         id: find-jar
         run: |
           output="$(find build/libs/ ! -name "*-javadoc.jar" ! -name "*-sources.jar" -type f -printf "%f\n")"
-          echo "::set-output name=jarname::$output"
+          echo "jarname=$output" >> $GITHUB_OUTPUT
       - name: Release the build
         if: ${{ github.event_name == 'push' }}
         uses: ncipollo/release-action@v1
