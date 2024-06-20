@@ -75,6 +75,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
   private String requesting;
   private long purgeCacheMillis;
   private long requestTimeout;
+  private boolean enablePrefetch;
 
   @Override
   public String getIdentifier() {
@@ -106,7 +107,17 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     config.put("requesting", "&4Requesting...");
     config.put("purge_cache_millis", 30_000);
     config.put("request_timeout", 5_000);
+    config.put("enable_prefetch", true);
     return config;
+  }
+
+  private boolean getBoolean(String path, boolean defaultValue) {
+    Object object = this.get(path, defaultValue);
+    if (object == null) {
+      object = defaultValue;
+    }
+
+    return (boolean) object;
   }
 
   private String getMessage(String path) {
@@ -132,6 +143,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     this.requesting = this.getMessage("requesting");
     this.purgeCacheMillis = this.getLong("purge_cache_millis", 5_000);
     this.requestTimeout = this.getLong("request_timeout", 5_000);
+    this.enablePrefetch = this.getBoolean("enable_prefetch", true);
 
     return super.register();
   }
@@ -141,7 +153,9 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     Bukkit.getMessenger().registerOutgoingPluginChannel(this.getPlaceholderAPI(), MESSAGE_CHANNEL);
     Bukkit.getMessenger().registerIncomingPluginChannel(this.getPlaceholderAPI(), MESSAGE_CHANNEL, this);
 
-    Bukkit.getPluginManager().registerEvents(new PrefetchListener(this), this.getPlaceholderAPI());
+    if (this.enablePrefetch) {
+      Bukkit.getPluginManager().registerEvents(new PrefetchListener(this), this.getPlaceholderAPI());
+    }
   }
 
   @Override
