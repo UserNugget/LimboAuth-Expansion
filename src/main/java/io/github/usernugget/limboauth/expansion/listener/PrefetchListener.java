@@ -22,6 +22,10 @@ public class PrefetchListener implements Listener {
     if (event.getChannel().equals(LimboAuthExpansion.MESSAGE_CHANNEL)) {
       this.expansion.requestFuture(new StringEndpoint(this.expansion, "available_endpoints", event.getPlayer().getName()))
           .thenAccept(available -> {
+            if (available.getValue() == null) {
+              return;
+            }
+
             for (String endpoint : available.getValue().split(",")) {
               if (LimboAuthExpansion.TYPES.containsKey(endpoint)) {
                 if (LimboAuthExpansion.DATE_TYPES.contains(endpoint)) {

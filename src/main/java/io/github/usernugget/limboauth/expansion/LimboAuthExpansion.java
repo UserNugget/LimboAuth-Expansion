@@ -163,7 +163,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
 
   public <T extends Endpoint> CompletableFuture<T> requestFuture(T endpoint) {
     if (Bukkit.getOnlinePlayers().isEmpty()) {
-      return null;
+      return CompletableFuture.completedFuture(endpoint);
     }
 
     Player player = Bukkit.getOnlinePlayers().iterator().next();
@@ -193,7 +193,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
   public <T extends Endpoint> T request(T endpoint) {
     CompletableFuture<Endpoint> request = this.requestFuture(endpoint);
     if (request == null) {
-      return null;
+      return endpoint;
     }
 
     return (T) request.getNow(endpoint);
@@ -213,11 +213,15 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
   public String onRequest(OfflinePlayer player, String params) {
     for (String key : TYPES.keySet()) {
       if (params.startsWith(key)) {
-        String username;
+        String username = null;
         if (params.startsWith(key + "_")) {
           username = params.substring(key.length() + 1);
-        } else {
+        } else if (player != null) {
           username = player.getName();
+        }
+
+        if (username == null) {
+          continue;
         }
 
         if (key.equals("premium_state")) {

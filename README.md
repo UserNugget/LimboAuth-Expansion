@@ -8,6 +8,7 @@ An a expansion for LimboAuth that provide placeholders for it.
 
 ### Some information before we start
 
+- All placeholders require at least one player on the server to work.
 - All placeholders can be used as **%limboauth\_\<placeholder>\_\<username>%** to see that specific placeholder for specific player.
 - All placeholders can be toggled in the config on LimboAuth side (backend-api.enabled-endpoints)
 
