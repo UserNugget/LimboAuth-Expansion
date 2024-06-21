@@ -76,6 +76,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
   private long purgeCacheMillis;
   private long requestTimeout;
   private boolean enablePrefetch;
+  private Player communicationPlayer;
 
   @Override
   public String getIdentifier() {
@@ -150,6 +151,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
 
   @Override
   public void start() {
+    this.communicationPlayer = null;
     Bukkit.getMessenger().registerOutgoingPluginChannel(this.getPlaceholderAPI(), MESSAGE_CHANNEL);
     Bukkit.getMessenger().registerIncomingPluginChannel(this.getPlaceholderAPI(), MESSAGE_CHANNEL, this);
 
@@ -175,12 +177,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     }
   }
 
-  public <T extends Endpoint> CompletableFuture<T> requestFuture(T endpoint) {
-    if (Bukkit.getOnlinePlayers().isEmpty()) {
-      return CompletableFuture.completedFuture(endpoint);
-    }
-
-    Player player = Bukkit.getOnlinePlayers().iterator().next();
+  public <T extends Endpoint> CompletableFuture<T> requestFuture(Player player, T endpoint) {
     CompletableFuture<Endpoint> request = this.requests.computeIfAbsent(endpoint.getType(), key -> new ConcurrentHashMap<>())
         .computeIfAbsent(endpoint.getUsername(), (username) -> {
           this.send(player, endpoint);
@@ -193,7 +190,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
           "Failed to request data from LimboAuth, retrying...");
 
       this.requests.get(endpoint.getType()).remove(endpoint.getUsername());
-      return this.requestFuture(endpoint);
+      return this.requestFuture(player, endpoint);
     }
 
     Endpoint response = request.getNow(endpoint);
@@ -204,8 +201,8 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     return (CompletableFuture<T>) request;
   }
 
-  public <T extends Endpoint> T request(T endpoint) {
-    CompletableFuture<Endpoint> request = this.requestFuture(endpoint);
+  public <T extends Endpoint> T request(Player player, T endpoint) {
+    CompletableFuture<Endpoint> request = this.requestFuture(player, endpoint);
     if (request == null) {
       return endpoint;
     }
@@ -216,8 +213,10 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
   public <T extends Endpoint> void send(Player player, T endpoint) {
     ByteArrayDataOutput output = ByteStreams.newDataOutput();
     endpoint.write(output);
-    if (!player.getListeningPluginChannels().contains(MESSAGE_CHANNEL)) {
-      throw new IllegalStateException("player messaging channel was not found");
+    if (!player.isOnline()) {
+      throw new IllegalStateException("trying to communiate via disconnected connection");
+    } else if (!player.getListeningPluginChannels().contains(MESSAGE_CHANNEL)) {
+      throw new IllegalStateException("trying to communicate via connection that was connected 'outside of LimboAuth'");
     }
 
     player.sendPluginMessage(this.getPlaceholderAPI(), MESSAGE_CHANNEL, output.toByteArray());
@@ -225,6 +224,18 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
 
   @Override
   public String onRequest(OfflinePlayer player, String params) {
+    Player onlinePlayer = null;
+    if (player != null) {
+      onlinePlayer = Bukkit.getPlayer(player.getUniqueId());
+      if (onlinePlayer != null && !onlinePlayer.getListeningPluginChannels().contains(MESSAGE_CHANNEL)) {
+        onlinePlayer = null;
+      }
+    }
+
+    if (onlinePlayer == null) {
+      onlinePlayer = this.findCommunicator();
+    }
+
     for (String key : TYPES.keySet()) {
       if (params.startsWith(key)) {
         String username = null;
@@ -239,7 +250,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
         }
 
         if (key.equals("premium_state")) {
-          StringEndpoint response = this.request(new StringEndpoint(this, key, username));
+          StringEndpoint response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
           if (response.getValue() != null) {
             switch (response.getValue()) {
               case "PREMIUM": {
@@ -259,14 +270,14 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
             return this.requesting;
           }
         } else if (STRING_TYPES.contains(key)) {
-          StringEndpoint response = this.request(new StringEndpoint(this, key, username));
+          StringEndpoint response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
           if (response.getValue() != null) {
             return response.getValue();
           } else {
             return this.requesting;
           }
         } else if (DATE_TYPES.contains(key)) {
-          LongEndpoint response = this.request(new LongEndpoint(this, key, username));
+          LongEndpoint response = this.request(onlinePlayer, new LongEndpoint(this, key, username));
           if (response.getValue() != null) {
             if (response.getValue() == Long.MIN_VALUE) {
               return this.unknown;
@@ -281,6 +292,23 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     }
 
     return null;
+  }
+
+  private Player findCommunicator() {
+    if (this.communicationPlayer == null || !this.communicationPlayer.isOnline()) {
+      for (Player player : Bukkit.getOnlinePlayers()) {
+        if (player.getListeningPluginChannels().contains(MESSAGE_CHANNEL)) {
+          this.communicationPlayer = player;
+          break;
+        }
+      }
+
+      if (this.communicationPlayer == null || !this.communicationPlayer.isOnline()) {
+        throw new IllegalStateException("failed to find any connections that use LimboAuth");
+      }
+    }
+
+    return this.communicationPlayer;
   }
 
   @Override

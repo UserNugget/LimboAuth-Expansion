@@ -20,7 +20,7 @@ public class PrefetchListener implements Listener {
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void onLoad(PlayerRegisterChannelEvent event) {
     if (event.getChannel().equals(LimboAuthExpansion.MESSAGE_CHANNEL)) {
-      this.expansion.requestFuture(new StringEndpoint(this.expansion, "available_endpoints", event.getPlayer().getName()))
+      this.expansion.requestFuture(event.getPlayer(), new StringEndpoint(this.expansion, "available_endpoints", event.getPlayer().getName()))
           .thenAccept(available -> {
             if (available.getValue() == null) {
               return;
@@ -29,9 +29,9 @@ public class PrefetchListener implements Listener {
             for (String endpoint : available.getValue().split(",")) {
               if (LimboAuthExpansion.TYPES.containsKey(endpoint)) {
                 if (LimboAuthExpansion.DATE_TYPES.contains(endpoint)) {
-                  this.expansion.request(new LongEndpoint(this.expansion, endpoint, event.getPlayer().getName()));
+                  this.expansion.request(event.getPlayer(), new LongEndpoint(this.expansion, endpoint, event.getPlayer().getName()));
                 } else {
-                  this.expansion.request(new StringEndpoint(this.expansion, endpoint, event.getPlayer().getName()));
+                  this.expansion.request(event.getPlayer(), new StringEndpoint(this.expansion, endpoint, event.getPlayer().getName()));
                 }
               }
             }
