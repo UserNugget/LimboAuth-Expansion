@@ -160,7 +160,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
 
   @Override
   public void stop() {
-    Bukkit.getMessenger().unregisterIncomingPluginChannel(this.getPlaceholderAPI(), MESSAGE_CHANNEL);
+    Bukkit.getMessenger().unregisterOutgoingPluginChannel(this.getPlaceholderAPI(), MESSAGE_CHANNEL);
     Bukkit.getMessenger().unregisterIncomingPluginChannel(this.getPlaceholderAPI(), MESSAGE_CHANNEL, this);
 
     this.unregisterEvent(PlayerRegisterChannelEvent.getHandlerList());
