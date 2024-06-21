@@ -119,6 +119,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     config.put("request_timeout", 5_000);
     config.put("enable_prefetch", true);
     config.put("log_errors", true);
+    config.put("quiet_errors", true);
     return config;
   }
 
