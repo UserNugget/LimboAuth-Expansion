@@ -32,6 +32,9 @@ An a expansion for LimboAuth that provide placeholders for it.
 - **unknown** - message for unknown account/parameter
 - **error** - message then LimboAuth fails to get player data
 - **requesting** - message then expansion is waiting for LimboAuth to respond
+- **unfetched** - message then something inside expansion fails
 - **purge_cache_millis** - cache updates in milliseconds {:
 - **request_timeout** - maximum timeout for waiting for LimboAuth to respond
 - **enable_prefetch** - prefetches available data from LimboAuth to reduce **requesting** messages
+- **log_errors** - toggle to show/hide errors in the console
+- **quiet_errors** - toggle to show/hide full stacktrace

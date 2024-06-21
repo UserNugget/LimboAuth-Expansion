@@ -3,6 +3,7 @@ package io.github.usernugget.limboauth.expansion.listener;
 import io.github.usernugget.limboauth.expansion.LimboAuthExpansion;
 import io.github.usernugget.limboauth.expansion.endpoint.type.LongEndpoint;
 import io.github.usernugget.limboauth.expansion.endpoint.type.StringEndpoint;
+import java.util.logging.Level;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -19,23 +20,30 @@ public class PrefetchListener implements Listener {
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void onLoad(PlayerRegisterChannelEvent event) {
-    if (event.getChannel().equals(LimboAuthExpansion.MESSAGE_CHANNEL)) {
-      this.expansion.requestFuture(event.getPlayer(), new StringEndpoint(this.expansion, "available_endpoints", event.getPlayer().getName()))
-          .thenAccept(available -> {
-            if (available.getValue() == null) {
-              return;
-            }
+    try {
+      if (event.getChannel().equals(LimboAuthExpansion.MESSAGE_CHANNEL)) {
+        this.expansion.requestFuture(event.getPlayer(), new StringEndpoint(this.expansion, "available_endpoints", event.getPlayer().getName()))
+            .thenAccept(available -> {
+              if (available.getValue() == null) {
+                return;
+              }
 
-            for (String endpoint : available.getValue().split(",")) {
-              if (LimboAuthExpansion.TYPES.containsKey(endpoint)) {
-                if (LimboAuthExpansion.DATE_TYPES.contains(endpoint)) {
-                  this.expansion.request(event.getPlayer(), new LongEndpoint(this.expansion, endpoint, event.getPlayer().getName()));
-                } else {
-                  this.expansion.request(event.getPlayer(), new StringEndpoint(this.expansion, endpoint, event.getPlayer().getName()));
+              for (String endpoint : available.getValue().split(",")) {
+                if (LimboAuthExpansion.TYPES.containsKey(endpoint)) {
+                  if (LimboAuthExpansion.DATE_TYPES.contains(endpoint)) {
+                    this.expansion.request(event.getPlayer(), new LongEndpoint(this.expansion, endpoint, event.getPlayer().getName()));
+                  } else {
+                    this.expansion.request(event.getPlayer(), new StringEndpoint(this.expansion, endpoint, event.getPlayer().getName()));
+                  }
                 }
               }
-            }
-          });
+            });
+      }
+    } catch (Throwable throwable) {
+      if (this.expansion.isLogErrors()) {
+        this.expansion.getPlaceholderAPI().getLogger().log(Level.SEVERE,
+            "Failed to prefetch LimboAuth data", throwable);
+      }
     }
   }
 

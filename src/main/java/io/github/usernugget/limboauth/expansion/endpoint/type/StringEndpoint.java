@@ -34,11 +34,11 @@ public class StringEndpoint extends Endpoint {
   public void read(ByteArrayDataInput input) {
     int type = input.readInt();
     if (type == -1) {
-      throw new IllegalStateException(this.type + " endpoint is disabled at Velocity side");
+      throw this.expansion.showError(this.type + " endpoint is disabled at Velocity side");
     } else if (type == -2) {
-      throw new IllegalStateException(this.type + " endpoint is unknown at Velocity side");
+      throw this.expansion.showError(this.type + " endpoint is unknown at Velocity side");
     } else if (type != 0) {
-      throw new IllegalStateException(this.type + " endpoint has unsupported version, ensure that extension and plugin is up-to-date.");
+      throw this.expansion.showError(this.type + " endpoint has unsupported version, ensure that extension and plugin is up-to-date.");
     }
 
     this.username = input.readUTF().toLowerCase(Locale.ROOT);

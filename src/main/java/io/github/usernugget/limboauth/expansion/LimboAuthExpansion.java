@@ -7,6 +7,7 @@ import io.github.usernugget.limboauth.expansion.endpoint.Endpoint;
 import io.github.usernugget.limboauth.expansion.endpoint.type.LongEndpoint;
 import io.github.usernugget.limboauth.expansion.endpoint.type.StringEndpoint;
 import io.github.usernugget.limboauth.expansion.listener.PrefetchListener;
+import io.github.usernugget.limboauth.expansion.throwable.QuietIllegalStateException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collections;
@@ -73,9 +74,12 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
   private String unknown;
   private String error;
   private String requesting;
+  private String unfetched;
   private long purgeCacheMillis;
   private long requestTimeout;
   private boolean enablePrefetch;
+  private boolean logErrors;
+  private boolean quietErrors;
   private Player communicationPlayer;
 
   @Override
@@ -98,6 +102,10 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     return "1.0.0";
   }
 
+  public boolean isLogErrors() {
+    return this.logErrors;
+  }
+
   @Override
   public Map<String, Object> getDefaults() {
     Map<String, Object> config = new LinkedHashMap<>();
@@ -106,9 +114,11 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     config.put("unknown", "&aUnknown account");
     config.put("error", "&4Database error");
     config.put("requesting", "&4Requesting...");
+    config.put("unfetched", "&7Unfetched");
     config.put("purge_cache_millis", 30_000);
     config.put("request_timeout", 5_000);
     config.put("enable_prefetch", true);
+    config.put("log_errors", true);
     return config;
   }
 
@@ -132,6 +142,14 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     return ChatColor.translateAlternateColorCodes('&', message);
   }
 
+  public IllegalStateException showError(String message) {
+    if (this.quietErrors) {
+      return new QuietIllegalStateException(message);
+    } else {
+      return new IllegalStateException(message);
+    }
+  }
+
   @Override
   public boolean register() {
     this.requests = new ConcurrentHashMap<>();
@@ -142,9 +160,12 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     this.unknown = this.getMessage("unknown");
     this.error = this.getMessage("error");
     this.requesting = this.getMessage("requesting");
+    this.unfetched = this.getMessage("unfetched");
     this.purgeCacheMillis = this.getLong("purge_cache_millis", 20_000);
     this.requestTimeout = this.getLong("request_timeout", 5_000);
     this.enablePrefetch = this.getBoolean("enable_prefetch", true);
+    this.logErrors = this.getBoolean("log_errors", true);
+    this.quietErrors = this.getBoolean("quiet_errors", true);
 
     return super.register();
   }
@@ -214,9 +235,9 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     ByteArrayDataOutput output = ByteStreams.newDataOutput();
     endpoint.write(output);
     if (!player.isOnline()) {
-      throw new IllegalStateException("trying to communiate via disconnected connection");
+      throw this.showError("trying to communiate via disconnected connection");
     } else if (!player.getListeningPluginChannels().contains(MESSAGE_CHANNEL)) {
-      throw new IllegalStateException("trying to communicate via connection that was connected 'outside of LimboAuth'");
+      throw this.showError("trying to communicate via connection that was connected 'outside of LimboAuth'");
     }
 
     player.sendPluginMessage(this.getPlaceholderAPI(), MESSAGE_CHANNEL, output.toByteArray());
@@ -224,74 +245,82 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
 
   @Override
   public String onRequest(OfflinePlayer player, String params) {
-    Player onlinePlayer = null;
-    if (player != null) {
-      onlinePlayer = Bukkit.getPlayer(player.getUniqueId());
-      if (onlinePlayer != null && !onlinePlayer.getListeningPluginChannels().contains(MESSAGE_CHANNEL)) {
-        onlinePlayer = null;
+    try {
+      Player onlinePlayer = null;
+      if (player != null) {
+        onlinePlayer = Bukkit.getPlayer(player.getUniqueId());
+        if (onlinePlayer != null && !onlinePlayer.getListeningPluginChannels().contains(MESSAGE_CHANNEL)) {
+          onlinePlayer = null;
+        }
       }
-    }
 
-    if (onlinePlayer == null) {
-      onlinePlayer = this.findCommunicator();
-    }
+      if (onlinePlayer == null) {
+        onlinePlayer = this.findCommunicator();
+      }
 
-    for (String key : TYPES.keySet()) {
-      if (params.startsWith(key)) {
-        String username = null;
-        if (params.startsWith(key + "_")) {
-          username = params.substring(key.length() + 1);
-        } else if (player != null) {
-          username = player.getName();
-        }
+      for (String key : TYPES.keySet()) {
+        if (params.startsWith(key)) {
+          String username = null;
+          if (params.startsWith(key + "_")) {
+            username = params.substring(key.length() + 1);
+          } else if (player != null) {
+            username = player.getName();
+          }
 
-        if (username == null) {
-          continue;
-        }
+          if (username == null) {
+            continue;
+          }
 
-        if (key.equals("premium_state")) {
-          StringEndpoint response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
-          if (response.getValue() != null) {
-            switch (response.getValue()) {
-              case "PREMIUM": {
-                return this.premium;
+          if (key.equals("premium_state")) {
+            StringEndpoint response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
+            if (response.getValue() != null) {
+              switch (response.getValue()) {
+                case "PREMIUM": {
+                  return this.premium;
+                }
+                case "CRACKED": {
+                  return this.cracked;
+                }
+                case "UNKNOWN": {
+                  return this.unknown;
+                }
+                default: {
+                  return this.error;
+                }
               }
-              case "CRACKED": {
-                return this.cracked;
-              }
-              case "UNKNOWN": {
+            } else {
+              return this.requesting;
+            }
+          } else if (STRING_TYPES.contains(key)) {
+            StringEndpoint response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
+            if (response.getValue() != null) {
+              return response.getValue();
+            } else {
+              return this.requesting;
+            }
+          } else if (DATE_TYPES.contains(key)) {
+            LongEndpoint response = this.request(onlinePlayer, new LongEndpoint(this, key, username));
+            if (response.getValue() != null) {
+              if (response.getValue() == Long.MIN_VALUE) {
                 return this.unknown;
               }
-              default: {
-                return this.error;
-              }
-            }
-          } else {
-            return this.requesting;
-          }
-        } else if (STRING_TYPES.contains(key)) {
-          StringEndpoint response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
-          if (response.getValue() != null) {
-            return response.getValue();
-          } else {
-            return this.requesting;
-          }
-        } else if (DATE_TYPES.contains(key)) {
-          LongEndpoint response = this.request(onlinePlayer, new LongEndpoint(this, key, username));
-          if (response.getValue() != null) {
-            if (response.getValue() == Long.MIN_VALUE) {
-              return this.unknown;
-            }
 
-            return this.dateFormat.format(new Date(response.getValue()));
-          } else {
-            return this.requesting;
+              return this.dateFormat.format(new Date(response.getValue()));
+            } else {
+              return this.requesting;
+            }
           }
         }
       }
-    }
 
-    return null;
+      return null;
+    } catch (Throwable throwable) {
+      if (this.logErrors) {
+        this.getPlaceholderAPI().getLogger().log(Level.SEVERE,
+            "Failed to handle placeholder '" + params + "'", throwable);
+      }
+      return this.unfetched;
+    }
   }
 
   private Player findCommunicator() {
@@ -304,7 +333,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
       }
 
       if (this.communicationPlayer == null || !this.communicationPlayer.isOnline()) {
-        throw new IllegalStateException("failed to find any connections that use LimboAuth");
+        throw this.showError("failed to find any connections that use LimboAuth");
       }
     }
 
@@ -322,7 +351,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
       String dataType = in.readUTF();
       Function<LimboAuthExpansion, Endpoint> typeFunc = TYPES.get(dataType);
       if (typeFunc == null) {
-        throw new IllegalStateException("received unknown endpoint type: " + dataType);
+        throw this.showError("received unknown endpoint type: " + dataType);
       }
 
       Endpoint endpoint = typeFunc.apply(this);
@@ -342,9 +371,11 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
           requests.put(endpoint.getUsername(), CompletableFuture.completedFuture(endpoint));
         }
       }
-    } catch (Exception e) {
-      this.getPlaceholderAPI().getLogger().log(Level.SEVERE,
-          "Failed to handle LimboAuth response:", e);
+    } catch (Throwable throwable) {
+      if (this.logErrors) {
+        this.getPlaceholderAPI().getLogger().log(Level.SEVERE,
+            "Failed to handle LimboAuth response:", throwable);
+      }
     }
   }
 
