@@ -208,8 +208,10 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
         });
 
     if (request.isCancelled() || request.isCompletedExceptionally()) {
-      this.getPlaceholderAPI().getLogger().log(Level.SEVERE,
-          "Failed to request data from LimboAuth, retrying...");
+      if (this.logErrors) {
+        this.getPlaceholderAPI().getLogger().log(Level.SEVERE,
+            "Failed to request '" + endpoint.getType() + "' for '" + endpoint.getUsername() + "' from LimboAuth, retrying...");
+      }
 
       this.requests.get(endpoint.getType()).remove(endpoint.getUsername());
       return this.requestFuture(player, endpoint);
