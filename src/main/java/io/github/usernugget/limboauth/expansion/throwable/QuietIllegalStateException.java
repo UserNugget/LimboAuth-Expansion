@@ -2,6 +2,8 @@ package io.github.usernugget.limboauth.expansion.throwable;
 
 public class QuietIllegalStateException extends IllegalStateException {
 
+  public QuietIllegalStateException() { }
+
   public QuietIllegalStateException(String message) {
     super(message);
   }

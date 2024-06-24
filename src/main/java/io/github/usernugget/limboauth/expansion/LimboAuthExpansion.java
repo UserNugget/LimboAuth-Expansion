@@ -1,12 +1,13 @@
 package io.github.usernugget.limboauth.expansion;
 
-import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.usernugget.limboauth.expansion.endpoint.Endpoint;
 import io.github.usernugget.limboauth.expansion.endpoint.type.LongEndpoint;
 import io.github.usernugget.limboauth.expansion.endpoint.type.StringEndpoint;
 import io.github.usernugget.limboauth.expansion.listener.PrefetchListener;
+import io.github.usernugget.limboauth.expansion.stream.Input;
 import io.github.usernugget.limboauth.expansion.throwable.QuietIllegalStateException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -68,6 +69,8 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
   }
 
   private Map<String, Map<String, CompletableFuture<Endpoint>>> requests = new ConcurrentHashMap<>();
+  private Player communicationPlayer;
+
   private SimpleDateFormat dateFormat;
   private String premium;
   private String cracked;
@@ -80,7 +83,7 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
   private boolean enablePrefetch;
   private boolean logErrors;
   private boolean quietErrors;
-  private Player communicationPlayer;
+  private String token;
 
   @Override
   public String getIdentifier() {
@@ -106,6 +109,10 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     return this.logErrors;
   }
 
+  public String getToken() {
+    return this.token;
+  }
+
   @Override
   public Map<String, Object> getDefaults() {
     Map<String, Object> config = new LinkedHashMap<>();
@@ -120,35 +127,8 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     config.put("enable_prefetch", true);
     config.put("log_errors", true);
     config.put("quiet_errors", true);
+    config.put("token", "paste_limboauth_token_here");
     return config;
-  }
-
-  private boolean getBoolean(String path, boolean defaultValue) {
-    Object object = this.get(path, defaultValue);
-    if (object == null) {
-      object = defaultValue;
-    }
-
-    return (boolean) object;
-  }
-
-  private String getMessage(String path) {
-    String message = this.getString(path, "...");
-
-    // spotbugs {:
-    if (message == null) {
-      message = "...";
-    }
-
-    return ChatColor.translateAlternateColorCodes('&', message);
-  }
-
-  public IllegalStateException showError(String message) {
-    if (this.quietErrors) {
-      return new QuietIllegalStateException(message);
-    } else {
-      return new IllegalStateException(message);
-    }
   }
 
   @Override
@@ -167,8 +147,35 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
     this.enablePrefetch = this.getBoolean("enable_prefetch", true);
     this.logErrors = this.getBoolean("log_errors", true);
     this.quietErrors = this.getBoolean("quiet_errors", true);
+    this.token = this.getString("token", "paste_limboauth_token_here");
 
     return super.register();
+  }
+
+  private boolean getBoolean(String path, boolean defaultValue) {
+    Object object = this.get(path, defaultValue);
+    if (object == null) {
+      object = defaultValue;
+    }
+
+    return (boolean) object;
+  }
+
+  private String getMessage(String path) {
+    String message = this.getString(path, "...");
+    if (message == null) {
+      message = "...";
+    }
+
+    return ChatColor.translateAlternateColorCodes('&', message);
+  }
+
+  public IllegalStateException showError(String message) {
+    if (this.quietErrors) {
+      return new QuietIllegalStateException(message);
+    } else {
+      return new IllegalStateException(message);
+    }
   }
 
   @Override
@@ -197,6 +204,21 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
         handlerList.unregister(listener.getListener());
       }
     }
+  }
+
+  @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
+  public <T extends Endpoint> T find(String type, String username) {
+    Map<String, CompletableFuture<Endpoint>> values = this.requests.get(type);
+    if (values == null) {
+      return null;
+    }
+
+    CompletableFuture<T> future = (CompletableFuture<T>) values.get(username);
+    if (future == null || future.isCancelled() || future.isCompletedExceptionally()) {
+      return null;
+    }
+
+    return future.getNow(null);
   }
 
   public <T extends Endpoint> CompletableFuture<T> requestFuture(Player player, T endpoint) {
@@ -271,11 +293,15 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
           }
 
           if (username == null) {
-            continue;
+            break;
           }
 
           if (key.equals("premium_state")) {
-            StringEndpoint response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
+            StringEndpoint response = this.find(key, username);
+            if (response == null) {
+              response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
+            }
+
             if (response.getValue() != null) {
               switch (response.getValue()) {
                 case "PREMIUM": {
@@ -295,14 +321,22 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
               return this.requesting;
             }
           } else if (STRING_TYPES.contains(key)) {
-            StringEndpoint response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
+            StringEndpoint response = this.find(key, username);
+            if (response == null) {
+              response = this.request(onlinePlayer, new StringEndpoint(this, key, username));
+            }
+
             if (response.getValue() != null) {
               return response.getValue();
             } else {
               return this.requesting;
             }
           } else if (DATE_TYPES.contains(key)) {
-            LongEndpoint response = this.request(onlinePlayer, new LongEndpoint(this, key, username));
+            LongEndpoint response = this.find(key, username);
+            if (response == null) {
+              response = this.request(onlinePlayer, new LongEndpoint(this, key, username));
+            }
+
             if (response.getValue() != null) {
               if (response.getValue() == Long.MIN_VALUE) {
                 return this.unknown;
@@ -349,9 +383,9 @@ public class LimboAuthExpansion extends PlaceholderExpansion implements PluginMe
       return;
     }
 
-    ByteArrayDataInput in = ByteStreams.newDataInput(message);
     try {
-      String dataType = in.readUTF();
+      Input in = new Input(message);
+      String dataType = in.readUtf(24);
       Function<LimboAuthExpansion, Endpoint> typeFunc = TYPES.get(dataType);
       if (typeFunc == null) {
         throw this.showError("received unknown endpoint type: " + dataType);

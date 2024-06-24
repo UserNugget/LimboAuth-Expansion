@@ -38,3 +38,4 @@ An a expansion for LimboAuth that provide placeholders for it.
 - **enable_prefetch** - prefetches available data from LimboAuth to reduce **requesting** messages
 - **log_errors** - toggle to show/hide errors in the console
 - **quiet_errors** - toggle to show/hide full stacktrace
+- **token** - token to verify LimboAuth responses with
